@@ -1,7 +1,9 @@
-package dev.flagkit;
+package dev.flagkit.http;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import dev.flagkit.FlagKitOptions;
+import dev.flagkit.error.ErrorCode;
+import dev.flagkit.error.FlagKitException;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

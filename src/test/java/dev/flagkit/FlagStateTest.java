@@ -1,5 +1,6 @@
 package dev.flagkit;
 
+import dev.flagkit.types.FlagState;
 import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.Map;

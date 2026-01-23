@@ -1,4 +1,4 @@
-package dev.flagkit;
+package dev.flagkit.error;
 
 import java.util.HashMap;
 import java.util.Map;

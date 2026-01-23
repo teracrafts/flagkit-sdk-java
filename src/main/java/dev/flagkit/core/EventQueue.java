@@ -1,5 +1,7 @@
-package dev.flagkit;
+package dev.flagkit.core;
 
+import dev.flagkit.http.HttpClient;
+import dev.flagkit.types.EvaluationContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

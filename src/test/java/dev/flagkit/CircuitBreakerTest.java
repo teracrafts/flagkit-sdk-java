@@ -1,5 +1,6 @@
 package dev.flagkit;
 
+import dev.flagkit.http.CircuitBreaker;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;

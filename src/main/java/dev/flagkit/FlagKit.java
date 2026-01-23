@@ -1,5 +1,9 @@
 package dev.flagkit;
 
+import dev.flagkit.error.ErrorCode;
+import dev.flagkit.error.FlagKitException;
+import dev.flagkit.types.EvaluationResult;
+
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 

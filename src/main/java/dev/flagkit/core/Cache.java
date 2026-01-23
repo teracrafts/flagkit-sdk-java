@@ -1,5 +1,6 @@
-package dev.flagkit;
+package dev.flagkit.core;
 
+import dev.flagkit.types.FlagState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

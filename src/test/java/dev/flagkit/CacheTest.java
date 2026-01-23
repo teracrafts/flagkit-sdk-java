@@ -1,5 +1,7 @@
 package dev.flagkit;
 
+import dev.flagkit.core.Cache;
+import dev.flagkit.types.FlagState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -1,5 +1,7 @@
 package dev.flagkit;
 
+import dev.flagkit.types.EvaluationReason;
+import dev.flagkit.types.EvaluationResult;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.HashMap;
