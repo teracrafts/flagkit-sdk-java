@@ -23,6 +23,19 @@ public class HttpClient {
     /** Default base URL for the FlagKit API */
     public static final String DEFAULT_BASE_URL = "https://api.flagkit.dev/api/v1";
 
+    /** Local base URL for local development */
+    private static final String LOCAL_BASE_URL = "http://localhost:8200/api/v1";
+
+    /**
+     * Returns the appropriate base URL based on the isLocal flag.
+     *
+     * @param isLocal true to use the local development URL, false for production
+     * @return the base URL to use
+     */
+    public static String getBaseUrl(boolean isLocal) {
+        return isLocal ? LOCAL_BASE_URL : DEFAULT_BASE_URL;
+    }
+
     private final OkHttpClient client;
     private final String baseUrl;
     private final String apiKey;

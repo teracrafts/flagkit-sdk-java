@@ -212,6 +212,7 @@ try {
 | `cacheTtl` | Duration | 5m | Cache TTL |
 | `disableCache` | - | - | Disable local caching |
 | `offline` | - | - | Offline mode |
+| `isLocal` | - | - | Use local development server (http://localhost:8200) |
 | `timeout` | Duration | 5s | HTTP request timeout |
 | `retries` | int | 3 | Number of retry attempts |
 | `bootstrap` | Map | {} | Initial flag values |
@@ -219,6 +220,18 @@ try {
 | `onReady` | Runnable | - | Ready callback |
 | `onError` | Consumer<Throwable> | - | Error callback |
 | `onUpdate` | Consumer<List<FlagState>> | - | Update callback |
+
+## Local Development
+
+Use the `isLocal()` option to connect to a local FlagKit server running on `http://localhost:8200`:
+
+```java
+FlagKitClient client = FlagKit.initialize(
+    FlagKitOptions.builder("sdk_your_api_key")
+        .isLocal()
+        .build()
+);
+```
 
 ## Testing
 

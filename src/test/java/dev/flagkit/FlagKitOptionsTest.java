@@ -155,4 +155,35 @@ class FlagKitOptionsTest {
 
         assertFalse(options.isCacheEnabled());
     }
+
+    @Test
+    void testIsLocalMode() {
+        FlagKitOptions options = FlagKitOptions.builder("sdk_test_key")
+                .isLocal()
+                .build();
+
+        assertTrue(options.isLocal());
+    }
+
+    @Test
+    void testIsLocalModeWithBoolean() {
+        FlagKitOptions options = FlagKitOptions.builder("sdk_test_key")
+                .isLocal(true)
+                .build();
+
+        assertTrue(options.isLocal());
+
+        FlagKitOptions optionsDisabled = FlagKitOptions.builder("sdk_test_key")
+                .isLocal(false)
+                .build();
+
+        assertFalse(optionsDisabled.isLocal());
+    }
+
+    @Test
+    void testIsLocalDefaultsFalse() {
+        FlagKitOptions options = FlagKitOptions.builder("sdk_test_key").build();
+
+        assertFalse(options.isLocal());
+    }
 }

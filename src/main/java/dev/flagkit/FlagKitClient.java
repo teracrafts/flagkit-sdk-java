@@ -45,7 +45,7 @@ public class FlagKitClient {
         this.options = options;
         this.cache = new Cache(options.getCacheTtl(), 1000);
         this.httpClient = new HttpClient(
-                HttpClient.DEFAULT_BASE_URL,
+                HttpClient.getBaseUrl(options.isLocal()),
                 options.getApiKey(),
                 options.getTimeout(),
                 options.getRetries()
