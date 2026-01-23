@@ -157,33 +157,27 @@ class FlagKitOptionsTest {
     }
 
     @Test
-    void testIsLocalMode() {
+    void testLocalPortMode() {
         FlagKitOptions options = FlagKitOptions.builder("sdk_test_key")
-                .isLocal()
+                .localPort(8200)
                 .build();
 
-        assertTrue(options.isLocal());
+        assertEquals(8200, options.getLocalPort());
     }
 
     @Test
-    void testIsLocalModeWithBoolean() {
+    void testLocalPortCustomValue() {
         FlagKitOptions options = FlagKitOptions.builder("sdk_test_key")
-                .isLocal(true)
+                .localPort(3000)
                 .build();
 
-        assertTrue(options.isLocal());
-
-        FlagKitOptions optionsDisabled = FlagKitOptions.builder("sdk_test_key")
-                .isLocal(false)
-                .build();
-
-        assertFalse(optionsDisabled.isLocal());
+        assertEquals(3000, options.getLocalPort());
     }
 
     @Test
-    void testIsLocalDefaultsFalse() {
+    void testLocalPortDefaultsNull() {
         FlagKitOptions options = FlagKitOptions.builder("sdk_test_key").build();
 
-        assertFalse(options.isLocal());
+        assertNull(options.getLocalPort());
     }
 }

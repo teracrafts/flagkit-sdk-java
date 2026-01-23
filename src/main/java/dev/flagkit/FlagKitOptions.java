@@ -26,7 +26,7 @@ public class FlagKitOptions {
     private final boolean cacheEnabled;
     private final Duration cacheTtl;
     private final boolean offline;
-    private final boolean isLocal;
+    private final Integer localPort;
     private final Duration timeout;
     private final int retries;
     private final Map<String, Object> bootstrap;
@@ -42,7 +42,7 @@ public class FlagKitOptions {
         this.cacheEnabled = builder.cacheEnabled;
         this.cacheTtl = builder.cacheTtl;
         this.offline = builder.offline;
-        this.isLocal = builder.isLocal;
+        this.localPort = builder.localPort;
         this.timeout = builder.timeout;
         this.retries = builder.retries;
         this.bootstrap = builder.bootstrap;
@@ -76,8 +76,8 @@ public class FlagKitOptions {
         return offline;
     }
 
-    public boolean isLocal() {
-        return isLocal;
+    public Integer getLocalPort() {
+        return localPort;
     }
 
     public Duration getTimeout() {
@@ -138,7 +138,7 @@ public class FlagKitOptions {
         private boolean cacheEnabled = true;
         private Duration cacheTtl = DEFAULT_CACHE_TTL;
         private boolean offline = false;
-        private boolean isLocal = false;
+        private Integer localPort = null;
         private Duration timeout = DEFAULT_TIMEOUT;
         private int retries = DEFAULT_RETRIES;
         private Map<String, Object> bootstrap = new HashMap<>();
@@ -191,13 +191,8 @@ public class FlagKitOptions {
             return this;
         }
 
-        public Builder isLocal(boolean isLocal) {
-            this.isLocal = isLocal;
-            return this;
-        }
-
-        public Builder isLocal() {
-            this.isLocal = true;
+        public Builder localPort(int port) {
+            this.localPort = port;
             return this;
         }
 
