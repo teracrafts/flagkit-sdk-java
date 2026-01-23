@@ -21,7 +21,6 @@ class FlagKitOptionsTest {
     void testDefaultValues() {
         FlagKitOptions options = FlagKitOptions.builder("sdk_test_key").build();
 
-        assertEquals(FlagKitOptions.DEFAULT_BASE_URL, options.getBaseUrl());
         assertEquals(FlagKitOptions.DEFAULT_POLLING_INTERVAL, options.getPollingInterval());
         assertEquals(FlagKitOptions.DEFAULT_CACHE_TTL, options.getCacheTtl());
         assertTrue(options.isCacheEnabled());
@@ -32,7 +31,6 @@ class FlagKitOptionsTest {
     @Test
     void testCustomValues() {
         FlagKitOptions options = FlagKitOptions.builder("sdk_test_key")
-                .baseUrl("https://custom.api.com/v1")
                 .pollingInterval(Duration.ofSeconds(60))
                 .cacheTtl(Duration.ofMinutes(10))
                 .cacheEnabled(false)
@@ -40,7 +38,6 @@ class FlagKitOptionsTest {
                 .retries(5)
                 .build();
 
-        assertEquals("https://custom.api.com/v1", options.getBaseUrl());
         assertEquals(Duration.ofSeconds(60), options.getPollingInterval());
         assertEquals(Duration.ofMinutes(10), options.getCacheTtl());
         assertFalse(options.isCacheEnabled());
@@ -119,7 +116,6 @@ class FlagKitOptionsTest {
     void testBuilderIsFluent() {
         FlagKitOptions.Builder builder = FlagKitOptions.builder("sdk_test_key");
 
-        assertSame(builder, builder.baseUrl("https://api.example.com"));
         assertSame(builder, builder.pollingInterval(Duration.ofSeconds(30)));
         assertSame(builder, builder.cacheTtl(Duration.ofMinutes(5)));
     }

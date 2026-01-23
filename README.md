@@ -85,7 +85,6 @@ FlagKitClient client = FlagKit.initialize(
 // Or create a client directly
 FlagKitClient client = new FlagKitClient(
     FlagKitOptions.builder("sdk_...")
-        .baseUrl("https://api.flagkit.dev/api/v1")
         .offline()
         .bootstrap(Map.of("feature-flag", true))
         .build()
@@ -208,7 +207,6 @@ try {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `baseUrl` | String | `https://api.flagkit.dev/api/v1` | API base URL |
 | `pollingInterval` | Duration | 30s | Polling interval |
 | `disablePolling` | - | - | Disable background polling |
 | `cacheTtl` | Duration | 5m | Cache TTL |

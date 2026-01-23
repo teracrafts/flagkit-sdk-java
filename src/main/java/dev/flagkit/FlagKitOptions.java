@@ -14,7 +14,6 @@ import java.util.function.Consumer;
  * Configuration options for the FlagKit client.
  */
 public class FlagKitOptions {
-    public static final String DEFAULT_BASE_URL = "https://api.flagkit.dev/api/v1";
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(30);
     public static final Duration DEFAULT_CACHE_TTL = Duration.ofMinutes(5);
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
@@ -22,7 +21,6 @@ public class FlagKitOptions {
     public static final String SDK_VERSION = "1.0.0";
 
     private final String apiKey;
-    private final String baseUrl;
     private final Duration pollingInterval;
     private final boolean enablePolling;
     private final boolean cacheEnabled;
@@ -38,7 +36,6 @@ public class FlagKitOptions {
 
     private FlagKitOptions(Builder builder) {
         this.apiKey = builder.apiKey;
-        this.baseUrl = builder.baseUrl;
         this.pollingInterval = builder.pollingInterval;
         this.enablePolling = builder.enablePolling;
         this.cacheEnabled = builder.cacheEnabled;
@@ -55,10 +52,6 @@ public class FlagKitOptions {
 
     public String getApiKey() {
         return apiKey;
-    }
-
-    public String getBaseUrl() {
-        return baseUrl;
     }
 
     public Duration getPollingInterval() {
@@ -134,7 +127,6 @@ public class FlagKitOptions {
 
     public static class Builder {
         private final String apiKey;
-        private String baseUrl = DEFAULT_BASE_URL;
         private Duration pollingInterval = DEFAULT_POLLING_INTERVAL;
         private boolean enablePolling = true;
         private boolean cacheEnabled = true;
@@ -150,11 +142,6 @@ public class FlagKitOptions {
 
         public Builder(String apiKey) {
             this.apiKey = Objects.requireNonNull(apiKey, "apiKey is required");
-        }
-
-        public Builder baseUrl(String baseUrl) {
-            this.baseUrl = baseUrl;
-            return this;
         }
 
         public Builder pollingInterval(Duration pollingInterval) {

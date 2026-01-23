@@ -20,6 +20,9 @@ public class HttpClient {
     private static final Logger logger = LoggerFactory.getLogger(HttpClient.class);
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
+    /** Default base URL for the FlagKit API */
+    public static final String DEFAULT_BASE_URL = "https://api.flagkit.dev/api/v1";
+
     private final OkHttpClient client;
     private final String baseUrl;
     private final String apiKey;

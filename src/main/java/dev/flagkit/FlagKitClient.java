@@ -45,7 +45,7 @@ public class FlagKitClient {
         this.options = options;
         this.cache = new Cache(options.getCacheTtl(), 1000);
         this.httpClient = new HttpClient(
-                options.getBaseUrl(),
+                HttpClient.DEFAULT_BASE_URL,
                 options.getApiKey(),
                 options.getTimeout(),
                 options.getRetries()
@@ -61,8 +61,7 @@ public class FlagKitClient {
         // Apply bootstrap values
         applyBootstrap();
 
-        logger.info("FlagKit client created (baseUrl: {}, offline: {})",
-                options.getBaseUrl(), options.isOffline());
+        logger.info("FlagKit client created (offline: {})", options.isOffline());
     }
 
     /**
