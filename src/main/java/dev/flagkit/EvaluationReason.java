@@ -48,4 +48,23 @@ public enum EvaluationReason {
     public String toString() {
         return value;
     }
+
+    /**
+     * Parses a string to an EvaluationReason.
+     *
+     * @param value the string value
+     * @return the matching EvaluationReason, or DEFAULT if not found
+     */
+    public static EvaluationReason fromString(String value) {
+        if (value == null || value.isEmpty()) {
+            return DEFAULT;
+        }
+        String upperValue = value.toUpperCase();
+        for (EvaluationReason reason : values()) {
+            if (reason.value.equals(upperValue)) {
+                return reason;
+            }
+        }
+        return DEFAULT;
+    }
 }
