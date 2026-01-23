@@ -1,0 +1,240 @@
+package dev.flagkit;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ * Configuration options for the FlagKit client.
+ */
+public class FlagKitOptions {
+    public static final String DEFAULT_BASE_URL = "https://api.flagkit.dev/api/v1";
+    public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(30);
+    public static final Duration DEFAULT_CACHE_TTL = Duration.ofMinutes(5);
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
+    public static final int DEFAULT_RETRIES = 3;
+    public static final String SDK_VERSION = "1.0.0";
+
+    private final String apiKey;
+    private final String baseUrl;
+    private final Duration pollingInterval;
+    private final boolean enablePolling;
+    private final boolean cacheEnabled;
+    private final Duration cacheTtl;
+    private final boolean offline;
+    private final Duration timeout;
+    private final int retries;
+    private final Map<String, Object> bootstrap;
+    private final boolean debug;
+    private final Runnable onReady;
+    private final Consumer<Throwable> onError;
+    private final Consumer<java.util.List<FlagState>> onUpdate;
+
+    private FlagKitOptions(Builder builder) {
+        this.apiKey = builder.apiKey;
+        this.baseUrl = builder.baseUrl;
+        this.pollingInterval = builder.pollingInterval;
+        this.enablePolling = builder.enablePolling;
+        this.cacheEnabled = builder.cacheEnabled;
+        this.cacheTtl = builder.cacheTtl;
+        this.offline = builder.offline;
+        this.timeout = builder.timeout;
+        this.retries = builder.retries;
+        this.bootstrap = builder.bootstrap;
+        this.debug = builder.debug;
+        this.onReady = builder.onReady;
+        this.onError = builder.onError;
+        this.onUpdate = builder.onUpdate;
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public Duration getPollingInterval() {
+        return pollingInterval;
+    }
+
+    public boolean isEnablePolling() {
+        return enablePolling;
+    }
+
+    public boolean isCacheEnabled() {
+        return cacheEnabled;
+    }
+
+    public Duration getCacheTtl() {
+        return cacheTtl;
+    }
+
+    public boolean isOffline() {
+        return offline;
+    }
+
+    public Duration getTimeout() {
+        return timeout;
+    }
+
+    public int getRetries() {
+        return retries;
+    }
+
+    public Map<String, Object> getBootstrap() {
+        return new HashMap<>(bootstrap);
+    }
+
+    public boolean isDebug() {
+        return debug;
+    }
+
+    public Runnable getOnReady() {
+        return onReady;
+    }
+
+    public Consumer<Throwable> getOnError() {
+        return onError;
+    }
+
+    public Consumer<java.util.List<FlagState>> getOnUpdate() {
+        return onUpdate;
+    }
+
+    public void validate() {
+        if (apiKey == null || apiKey.isEmpty()) {
+            throw FlagKitException.configError(ErrorCode.CONFIG_MISSING_REQUIRED, "API key is required");
+        }
+
+        if (apiKey.length() < 10) {
+            throw FlagKitException.authError(ErrorCode.AUTH_INVALID_KEY, "API key is too short");
+        }
+
+        if (!apiKey.startsWith("sdk_") && !apiKey.startsWith("srv_") && !apiKey.startsWith("cli_")) {
+            throw FlagKitException.authError(ErrorCode.AUTH_INVALID_KEY, "Invalid API key prefix");
+        }
+
+        if (pollingInterval.toMillis() < 1000) {
+            throw FlagKitException.configError(ErrorCode.CONFIG_INVALID_INTERVAL,
+                    "Polling interval must be at least 1 second");
+        }
+    }
+
+    public static Builder builder(String apiKey) {
+        return new Builder(apiKey);
+    }
+
+    public static class Builder {
+        private final String apiKey;
+        private String baseUrl = DEFAULT_BASE_URL;
+        private Duration pollingInterval = DEFAULT_POLLING_INTERVAL;
+        private boolean enablePolling = true;
+        private boolean cacheEnabled = true;
+        private Duration cacheTtl = DEFAULT_CACHE_TTL;
+        private boolean offline = false;
+        private Duration timeout = DEFAULT_TIMEOUT;
+        private int retries = DEFAULT_RETRIES;
+        private Map<String, Object> bootstrap = new HashMap<>();
+        private boolean debug = false;
+        private Runnable onReady;
+        private Consumer<Throwable> onError;
+        private Consumer<java.util.List<FlagState>> onUpdate;
+
+        public Builder(String apiKey) {
+            this.apiKey = Objects.requireNonNull(apiKey, "apiKey is required");
+        }
+
+        public Builder baseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+            return this;
+        }
+
+        public Builder pollingInterval(Duration pollingInterval) {
+            this.pollingInterval = pollingInterval;
+            return this;
+        }
+
+        public Builder enablePolling(boolean enablePolling) {
+            this.enablePolling = enablePolling;
+            return this;
+        }
+
+        public Builder disablePolling() {
+            this.enablePolling = false;
+            return this;
+        }
+
+        public Builder cacheEnabled(boolean cacheEnabled) {
+            this.cacheEnabled = cacheEnabled;
+            return this;
+        }
+
+        public Builder disableCache() {
+            this.cacheEnabled = false;
+            return this;
+        }
+
+        public Builder cacheTtl(Duration cacheTtl) {
+            this.cacheTtl = cacheTtl;
+            return this;
+        }
+
+        public Builder offline(boolean offline) {
+            this.offline = offline;
+            return this;
+        }
+
+        public Builder offline() {
+            this.offline = true;
+            return this;
+        }
+
+        public Builder timeout(Duration timeout) {
+            this.timeout = timeout;
+            return this;
+        }
+
+        public Builder retries(int retries) {
+            this.retries = retries;
+            return this;
+        }
+
+        public Builder bootstrap(Map<String, Object> bootstrap) {
+            this.bootstrap = new HashMap<>(bootstrap);
+            return this;
+        }
+
+        public Builder debug(boolean debug) {
+            this.debug = debug;
+            return this;
+        }
+
+        public Builder debug() {
+            this.debug = true;
+            return this;
+        }
+
+        public Builder onReady(Runnable onReady) {
+            this.onReady = onReady;
+            return this;
+        }
+
+        public Builder onError(Consumer<Throwable> onError) {
+            this.onError = onError;
+            return this;
+        }
+
+        public Builder onUpdate(Consumer<java.util.List<FlagState>> onUpdate) {
+            this.onUpdate = onUpdate;
+            return this;
+        }
+
+        public FlagKitOptions build() {
+            return new FlagKitOptions(this);
+        }
+    }
+}
