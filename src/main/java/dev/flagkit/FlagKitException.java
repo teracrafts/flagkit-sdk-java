@@ -86,4 +86,81 @@ public class FlagKitException extends RuntimeException {
     public static FlagKitException configError(ErrorCode code, String message) {
         return new FlagKitException(code, message);
     }
+
+    /**
+     * Creates a network error with error code.
+     */
+    public static FlagKitException networkError(ErrorCode code, String message) {
+        return new FlagKitException(code, message);
+    }
+
+    /**
+     * Creates a network error with error code and cause.
+     */
+    public static FlagKitException networkError(ErrorCode code, String message, Throwable cause) {
+        return new FlagKitException(code, message, cause);
+    }
+
+    /**
+     * Creates an evaluation error.
+     */
+    public static FlagKitException evaluationError(ErrorCode code, String message) {
+        return new FlagKitException(code, message);
+    }
+
+    /**
+     * Creates an SDK lifecycle error.
+     */
+    public static FlagKitException sdkError(ErrorCode code, String message) {
+        return new FlagKitException(code, message);
+    }
+
+    /**
+     * Creates a not initialized error.
+     */
+    public static FlagKitException notInitialized() {
+        return new FlagKitException(ErrorCode.SDK_NOT_INITIALIZED, "SDK not initialized. Call FlagKit.initialize() first.");
+    }
+
+    /**
+     * Creates an already initialized error.
+     */
+    public static FlagKitException alreadyInitialized() {
+        return new FlagKitException(ErrorCode.SDK_ALREADY_INITIALIZED, "SDK already initialized.");
+    }
+
+    /**
+     * Alias for errorCode getter.
+     */
+    public ErrorCode getCode() {
+        return errorCode;
+    }
+
+    /**
+     * Checks if this is a config error.
+     */
+    public boolean isConfigError() {
+        return errorCode.getCode().startsWith("CONFIG_");
+    }
+
+    /**
+     * Checks if this is a network error.
+     */
+    public boolean isNetworkError() {
+        return errorCode.getCode().startsWith("HTTP_") || errorCode.getCode().startsWith("NETWORK_");
+    }
+
+    /**
+     * Checks if this is an evaluation error.
+     */
+    public boolean isEvaluationError() {
+        return errorCode.getCode().startsWith("EVAL_");
+    }
+
+    /**
+     * Checks if this is an SDK lifecycle error.
+     */
+    public boolean isSdkError() {
+        return errorCode.getCode().startsWith("SDK_") || errorCode.getCode().startsWith("INIT_");
+    }
 }
