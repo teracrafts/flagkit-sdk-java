@@ -91,7 +91,7 @@ public class HttpClient {
         String url = baseUrl + path;
         Request request = new Request.Builder()
                 .url(url)
-                .addHeader("Authorization", "Bearer " + apiKey)
+                .addHeader("X-API-Key", apiKey)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("X-SDK-Version", FlagKitOptions.SDK_VERSION)
                 .get()
@@ -115,7 +115,7 @@ public class HttpClient {
 
         Request request = new Request.Builder()
                 .url(url)
-                .addHeader("Authorization", "Bearer " + apiKey)
+                .addHeader("X-API-Key", apiKey)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("X-SDK-Version", FlagKitOptions.SDK_VERSION)
                 .post(requestBody)
