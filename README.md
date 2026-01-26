@@ -2,6 +2,10 @@
 
 Official Java SDK for [FlagKit](https://flagkit.dev) - Feature flag management made simple.
 
+## Requirements
+
+- Java 11+
+
 ## Installation
 
 ### Maven
@@ -20,10 +24,6 @@ Official Java SDK for [FlagKit](https://flagkit.dev) - Feature flag management m
 implementation 'dev.flagkit:flagkit-java:1.0.0'
 ```
 
-## Requirements
-
-- Java 11+
-
 ## Quick Start
 
 ```java
@@ -35,10 +35,7 @@ public class Main {
         FlagKitClient client = FlagKit.initialize("sdk_your_api_key");
 
         // Identify a user
-        client.identify("user-123", Map.of(
-            "email", "user@example.com",
-            "plan", "premium"
-        ));
+        client.identify("user-123", Map.of("plan", "premium"));
 
         // Evaluate flags
         boolean darkMode = client.getBooleanValue("dark-mode", false);
@@ -67,6 +64,34 @@ public class Main {
 - **Event tracking** - Analytics with batching
 - **Resilient** - Circuit breaker, retry with backoff, offline support
 - **Thread-safe** - Safe for concurrent use
+
+## Architecture
+
+The SDK is organized into clean, modular packages:
+
+```
+dev.flagkit/
+├── FlagKit.java            # Static methods and singleton access
+├── FlagKitClient.java      # Main client implementation
+├── FlagKitOptions.java     # Configuration options
+├── core/                   # Core components
+│   ├── FlagCache.java      # In-memory cache with TTL
+│   ├── ContextManager.java
+│   ├── PollingManager.java
+│   └── EventQueue.java     # Event batching
+├── http/                   # HTTP client, circuit breaker, retry
+│   ├── HttpClient.java
+│   └── CircuitBreaker.java
+├── error/                  # Error types and codes
+│   ├── FlagKitException.java
+│   └── ErrorCode.java
+├── types/                  # Type definitions
+│   ├── EvaluationContext.java
+│   ├── EvaluationResult.java
+│   └── FlagState.java
+└── utils/                  # Utilities
+    └── Logger.java
+```
 
 ## API Reference
 
@@ -203,23 +228,24 @@ try {
 }
 ```
 
-## Configuration Options
+## All Configuration Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `apiKey` | String | Required | API key for authentication |
 | `pollingInterval` | Duration | 30s | Polling interval |
-| `disablePolling` | - | - | Disable background polling |
+| `enablePolling` | boolean | true | Enable background polling |
+| `cacheEnabled` | boolean | true | Enable local caching |
 | `cacheTtl` | Duration | 5m | Cache TTL |
-| `disableCache` | - | - | Disable local caching |
-| `offline` | - | - | Offline mode |
-| `localPort` | int | - | Use local development server on specified port |
+| `offline` | boolean | false | Offline mode |
+| `localPort` | Integer | null | Local development port |
 | `timeout` | Duration | 5s | HTTP request timeout |
 | `retries` | int | 3 | Number of retry attempts |
 | `bootstrap` | Map | {} | Initial flag values |
-| `debug` | - | - | Enable debug logging |
-| `onReady` | Runnable | - | Ready callback |
-| `onError` | Consumer<Throwable> | - | Error callback |
-| `onUpdate` | Consumer<List<FlagState>> | - | Update callback |
+| `debug` | boolean | false | Enable debug logging |
+| `onReady` | Runnable | null | Ready callback |
+| `onError` | Consumer | null | Error callback |
+| `onUpdate` | Consumer | null | Update callback |
 
 ## Local Development
 
@@ -247,6 +273,15 @@ client.initialize();
 
 // Or mock the HTTP responses using MockWebServer
 ```
+
+## Thread Safety
+
+All SDK methods are safe for concurrent use from multiple threads. The client uses internal synchronization to ensure thread-safe access to:
+
+- Flag cache
+- Event queue
+- Context management
+- Polling state
 
 ## License
 
