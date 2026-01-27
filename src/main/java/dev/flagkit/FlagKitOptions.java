@@ -10,6 +10,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import dev.flagkit.security.BootstrapConfig;
+import dev.flagkit.security.BootstrapVerificationConfig;
+import dev.flagkit.security.EvaluationJitterConfig;
+import dev.flagkit.security.ErrorSanitizationConfig;
+
 /**
  * Configuration options for the FlagKit client.
  */
@@ -35,6 +40,14 @@ public class FlagKitOptions {
     private final Consumer<Throwable> onError;
     private final Consumer<java.util.List<FlagState>> onUpdate;
 
+    // Security configuration
+    private final boolean enableRequestSigning;
+    private final boolean enableCacheEncryption;
+    private final BootstrapConfig bootstrapConfig;
+    private final BootstrapVerificationConfig bootstrapVerification;
+    private final EvaluationJitterConfig evaluationJitter;
+    private final ErrorSanitizationConfig errorSanitization;
+
     private FlagKitOptions(Builder builder) {
         this.apiKey = builder.apiKey;
         this.pollingInterval = builder.pollingInterval;
@@ -50,6 +63,13 @@ public class FlagKitOptions {
         this.onReady = builder.onReady;
         this.onError = builder.onError;
         this.onUpdate = builder.onUpdate;
+        // Security configuration
+        this.enableRequestSigning = builder.enableRequestSigning;
+        this.enableCacheEncryption = builder.enableCacheEncryption;
+        this.bootstrapConfig = builder.bootstrapConfig;
+        this.bootstrapVerification = builder.bootstrapVerification;
+        this.evaluationJitter = builder.evaluationJitter;
+        this.errorSanitization = builder.errorSanitization;
     }
 
     public String getApiKey() {
@@ -108,6 +128,30 @@ public class FlagKitOptions {
         return onUpdate;
     }
 
+    public boolean isEnableRequestSigning() {
+        return enableRequestSigning;
+    }
+
+    public boolean isEnableCacheEncryption() {
+        return enableCacheEncryption;
+    }
+
+    public BootstrapConfig getBootstrapConfig() {
+        return bootstrapConfig;
+    }
+
+    public BootstrapVerificationConfig getBootstrapVerification() {
+        return bootstrapVerification;
+    }
+
+    public EvaluationJitterConfig getEvaluationJitter() {
+        return evaluationJitter;
+    }
+
+    public ErrorSanitizationConfig getErrorSanitization() {
+        return errorSanitization;
+    }
+
     public void validate() {
         if (apiKey == null || apiKey.isEmpty()) {
             throw FlagKitException.configError(ErrorCode.CONFIG_MISSING_REQUIRED, "API key is required");
@@ -146,6 +190,13 @@ public class FlagKitOptions {
         private Runnable onReady;
         private Consumer<Throwable> onError;
         private Consumer<java.util.List<FlagState>> onUpdate;
+        // Security configuration defaults
+        private boolean enableRequestSigning = true;
+        private boolean enableCacheEncryption = false;
+        private BootstrapConfig bootstrapConfig = null;
+        private BootstrapVerificationConfig bootstrapVerification = BootstrapVerificationConfig.defaults();
+        private EvaluationJitterConfig evaluationJitter = EvaluationJitterConfig.disabled();
+        private ErrorSanitizationConfig errorSanitization = ErrorSanitizationConfig.defaults();
 
         public Builder(String apiKey) {
             this.apiKey = Objects.requireNonNull(apiKey, "apiKey is required");
@@ -233,6 +284,125 @@ public class FlagKitOptions {
 
         public Builder onUpdate(Consumer<java.util.List<FlagState>> onUpdate) {
             this.onUpdate = onUpdate;
+            return this;
+        }
+
+        /**
+         * Enables or disables request signing (HMAC-SHA256).
+         * Default: enabled
+         */
+        public Builder enableRequestSigning(boolean enable) {
+            this.enableRequestSigning = enable;
+            return this;
+        }
+
+        /**
+         * Disables request signing.
+         */
+        public Builder disableRequestSigning() {
+            this.enableRequestSigning = false;
+            return this;
+        }
+
+        /**
+         * Enables or disables cache encryption (AES-256-GCM).
+         * Default: disabled
+         */
+        public Builder enableCacheEncryption(boolean enable) {
+            this.enableCacheEncryption = enable;
+            return this;
+        }
+
+        /**
+         * Enables cache encryption.
+         */
+        public Builder enableCacheEncryption() {
+            this.enableCacheEncryption = true;
+            return this;
+        }
+
+        /**
+         * Sets signed bootstrap configuration.
+         * Use this instead of bootstrap() when using signed bootstrap data.
+         */
+        public Builder bootstrapConfig(BootstrapConfig config) {
+            this.bootstrapConfig = config;
+            if (config != null && config.getFlags() != null) {
+                this.bootstrap = new HashMap<>(config.getFlags());
+            }
+            return this;
+        }
+
+        /**
+         * Sets bootstrap with signature for verification.
+         */
+        public Builder bootstrapWithSignature(Map<String, Object> flags, String signature, long timestamp) {
+            this.bootstrapConfig = new BootstrapConfig(flags, signature, timestamp);
+            this.bootstrap = new HashMap<>(flags);
+            return this;
+        }
+
+        /**
+         * Configures bootstrap verification settings.
+         */
+        public Builder bootstrapVerification(BootstrapVerificationConfig config) {
+            this.bootstrapVerification = config != null ? config : BootstrapVerificationConfig.defaults();
+            return this;
+        }
+
+        /**
+         * Disables bootstrap verification.
+         */
+        public Builder disableBootstrapVerification() {
+            this.bootstrapVerification = BootstrapVerificationConfig.disabled();
+            return this;
+        }
+
+        /**
+         * Configures evaluation jitter settings for timing attack protection.
+         */
+        public Builder evaluationJitter(EvaluationJitterConfig config) {
+            this.evaluationJitter = config != null ? config : EvaluationJitterConfig.disabled();
+            return this;
+        }
+
+        /**
+         * Enables evaluation jitter with default settings (5-15ms).
+         */
+        public Builder enableEvaluationJitter() {
+            this.evaluationJitter = EvaluationJitterConfig.defaults();
+            return this;
+        }
+
+        /**
+         * Enables evaluation jitter with custom min/max milliseconds.
+         */
+        public Builder enableEvaluationJitter(int minMs, int maxMs) {
+            this.evaluationJitter = new EvaluationJitterConfig(true, minMs, maxMs);
+            return this;
+        }
+
+        /**
+         * Configures error sanitization settings.
+         */
+        public Builder errorSanitization(ErrorSanitizationConfig config) {
+            this.errorSanitization = config != null ? config : ErrorSanitizationConfig.defaults();
+            return this;
+        }
+
+        /**
+         * Enables error sanitization with debug preservation.
+         */
+        public Builder errorSanitizationWithPreservation() {
+            this.errorSanitization = new ErrorSanitizationConfig(true, true);
+            return this;
+        }
+
+        /**
+         * Disables error sanitization.
+         */
+        public Builder disableErrorSanitization() {
+            this.errorSanitization = ErrorSanitizationConfig.disabled();
             return this;
         }
 
