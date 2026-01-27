@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import dev.flagkit.FlagKitOptions;
 import dev.flagkit.error.ErrorCode;
 import dev.flagkit.error.FlagKitException;
+import dev.flagkit.security.RequestSignature;
+import dev.flagkit.security.RequestSigning;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +45,13 @@ public class HttpClient {
     private final Duration maxDelay;
     private final double backoffMultiplier;
     private final Random random;
+    private final boolean enableRequestSigning;
 
     public HttpClient(String baseUrl, String apiKey, Duration timeout, int maxRetries) {
+        this(baseUrl, apiKey, timeout, maxRetries, true);
+    }
+
+    public HttpClient(String baseUrl, String apiKey, Duration timeout, int maxRetries, boolean enableRequestSigning) {
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
                 .readTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
@@ -59,6 +66,7 @@ public class HttpClient {
         this.maxDelay = Duration.ofSeconds(30);
         this.backoffMultiplier = 2.0;
         this.random = new Random();
+        this.enableRequestSigning = enableRequestSigning;
     }
 
     /**
@@ -113,13 +121,21 @@ public class HttpClient {
         String jsonBody = gson.toJson(body);
         RequestBody requestBody = RequestBody.create(jsonBody, JSON);
 
-        Request request = new Request.Builder()
+        Request.Builder requestBuilder = new Request.Builder()
                 .url(url)
                 .addHeader("X-API-Key", apiKey)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("X-SDK-Version", FlagKitOptions.SDK_VERSION)
-                .post(requestBody)
-                .build();
+                .addHeader("X-SDK-Version", FlagKitOptions.SDK_VERSION);
+
+        // Add request signing headers if enabled
+        if (enableRequestSigning && jsonBody != null && !jsonBody.isEmpty()) {
+            RequestSignature signature = RequestSigning.createRequestSignature(jsonBody, apiKey);
+            requestBuilder.addHeader("X-Signature", signature.getSignature());
+            requestBuilder.addHeader("X-Timestamp", String.valueOf(signature.getTimestamp()));
+            requestBuilder.addHeader("X-Key-Id", signature.getKeyId());
+        }
+
+        Request request = requestBuilder.post(requestBody).build();
 
         logger.debug("POST {} - {}", url, jsonBody);
 
