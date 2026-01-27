@@ -7,8 +7,11 @@ import com.google.gson.JsonObject;
 import dev.flagkit.core.Cache;
 import dev.flagkit.core.EventQueue;
 import dev.flagkit.core.PollingManager;
+import dev.flagkit.error.ErrorSanitizer;
 import dev.flagkit.error.FlagKitException;
 import dev.flagkit.http.HttpClient;
+import dev.flagkit.security.BootstrapVerification;
+import dev.flagkit.security.EvaluationJitterConfig;
 import dev.flagkit.types.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +51,8 @@ public class FlagKitClient {
                 HttpClient.getBaseUrl(options.getLocalPort()),
                 options.getApiKey(),
                 options.getTimeout(),
-                options.getRetries()
+                options.getRetries(),
+                options.isEnableRequestSigning()
         );
         this.sessionId = UUID.randomUUID().toString();
         this.eventQueue = new EventQueue(httpClient, sessionId, FlagKitOptions.SDK_VERSION);
@@ -57,6 +61,14 @@ public class FlagKitClient {
         this.ready = false;
         this.closed = false;
         this.readyLatch = new CountDownLatch(1);
+
+        // Configure error sanitization
+        if (options.getErrorSanitization() != null) {
+            ErrorSanitizer.setDefaultConfig(options.getErrorSanitization());
+        }
+
+        // Verify bootstrap signature if configured
+        verifyBootstrapIfNeeded();
 
         // Apply bootstrap values
         applyBootstrap();
@@ -407,6 +419,9 @@ public class FlagKitClient {
     }
 
     private EvaluationResult evaluate(String key, Object defaultValue, FlagType expectedType, EvaluationContext ctx) {
+        // Apply evaluation jitter if enabled (cache timing attack protection)
+        applyEvaluationJitter();
+
         // Validate key
         if (key == null || key.isEmpty()) {
             logger.warn("Invalid flag key: {}", key);
@@ -562,6 +577,46 @@ public class FlagKitClient {
         readyLatch.countDown();
         if (options.getOnReady() != null) {
             options.getOnReady().run();
+        }
+    }
+
+    /**
+     * Applies random evaluation jitter for cache timing attack protection.
+     */
+    private void applyEvaluationJitter() {
+        EvaluationJitterConfig jitterConfig = options.getEvaluationJitter();
+        if (jitterConfig == null || !jitterConfig.isEnabled()) {
+            return;
+        }
+
+        int jitterMs = jitterConfig.calculateJitter();
+        if (jitterMs > 0) {
+            try {
+                Thread.sleep(jitterMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /**
+     * Verifies bootstrap signature if signed bootstrap is configured.
+     */
+    private void verifyBootstrapIfNeeded() {
+        if (options.getBootstrapConfig() == null || !options.getBootstrapConfig().isSigned()) {
+            return;
+        }
+
+        boolean verified = BootstrapVerification.verifyBootstrapSignature(
+                options.getBootstrapConfig(),
+                options.getApiKey(),
+                options.getBootstrapVerification()
+        );
+
+        if (verified) {
+            logger.debug("Bootstrap signature verified successfully");
+        } else {
+            logger.warn("Bootstrap signature verification failed or was skipped");
         }
     }
 }
