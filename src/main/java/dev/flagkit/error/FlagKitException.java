@@ -163,4 +163,25 @@ public class FlagKitException extends RuntimeException {
     public boolean isSdkError() {
         return errorCode.getCode().startsWith("SDK_") || errorCode.getCode().startsWith("INIT_");
     }
+
+    /**
+     * Checks if this is a security error.
+     */
+    public boolean isSecurityError() {
+        return errorCode.getCode().startsWith("SECURITY_");
+    }
+
+    /**
+     * Creates a security error.
+     */
+    public static FlagKitException securityError(ErrorCode code, String message) {
+        return new FlagKitException(code, message);
+    }
+
+    /**
+     * Creates a security error with cause.
+     */
+    public static FlagKitException securityError(ErrorCode code, String message, Throwable cause) {
+        return new FlagKitException(code, message, cause);
+    }
 }
