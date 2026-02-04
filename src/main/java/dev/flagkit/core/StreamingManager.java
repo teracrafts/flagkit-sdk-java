@@ -40,6 +40,118 @@ import java.util.function.Supplier;
  * </ul>
  */
 public class StreamingManager {
+
+    /**
+     * SSE error codes from server.
+     */
+    public enum StreamErrorCode {
+        /** Token is invalid - needs full re-authentication */
+        TOKEN_INVALID("TOKEN_INVALID"),
+        /** Token has expired - refresh and reconnect */
+        TOKEN_EXPIRED("TOKEN_EXPIRED"),
+        /** Organization subscription is suspended */
+        SUBSCRIPTION_SUSPENDED("SUBSCRIPTION_SUSPENDED"),
+        /** Too many concurrent streaming connections */
+        CONNECTION_LIMIT("CONNECTION_LIMIT"),
+        /** Streaming service is not available */
+        STREAMING_UNAVAILABLE("STREAMING_UNAVAILABLE");
+
+        private final String code;
+
+        StreamErrorCode(String code) {
+            this.code = code;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        /**
+         * Parses a string to a StreamErrorCode.
+         *
+         * @param code the string code
+         * @return the matching StreamErrorCode, or null if not found
+         */
+        public static StreamErrorCode fromString(String code) {
+            if (code == null || code.isEmpty()) {
+                return null;
+            }
+            for (StreamErrorCode errorCode : values()) {
+                if (errorCode.code.equals(code)) {
+                    return errorCode;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            return code;
+        }
+    }
+
+    /**
+     * SSE error event data structure.
+     */
+    public static class StreamErrorData {
+        private final StreamErrorCode code;
+        private final String message;
+
+        public StreamErrorData(StreamErrorCode code, String message) {
+            this.code = code;
+            this.message = message;
+        }
+
+        /**
+         * Returns the error code.
+         *
+         * @return the error code
+         */
+        public StreamErrorCode getCode() {
+            return code;
+        }
+
+        /**
+         * Returns the error message.
+         *
+         * @return the error message
+         */
+        public String getMessage() {
+            return message;
+        }
+
+        @Override
+        public String toString() {
+            return "StreamErrorData{" +
+                    "code=" + code +
+                    ", message='" + message + '\'' +
+                    '}';
+        }
+    }
+
+    /**
+     * Callback for subscription errors (e.g., suspended subscription).
+     */
+    @FunctionalInterface
+    public interface OnSubscriptionError {
+        /**
+         * Called when a subscription error occurs.
+         *
+         * @param message the error message
+         */
+        void onError(String message);
+    }
+
+    /**
+     * Callback for connection limit errors.
+     */
+    @FunctionalInterface
+    public interface OnConnectionLimitError {
+        /**
+         * Called when the connection limit is reached.
+         */
+        void onError();
+    }
     private static final Logger logger = LoggerFactory.getLogger(StreamingManager.class);
     private static final Gson gson = new Gson();
 
@@ -93,6 +205,8 @@ public class StreamingManager {
     private final Consumer<String> onFlagDelete;
     private final Consumer<List<FlagState>> onFlagsReset;
     private final Runnable onFallbackToPolling;
+    private volatile OnSubscriptionError onSubscriptionError;
+    private volatile OnConnectionLimitError onConnectionLimitError;
 
     private final OkHttpClient httpClient;
     private final ScheduledExecutorService executor;
@@ -113,6 +227,20 @@ public class StreamingManager {
             Consumer<String> onFlagDelete,
             Consumer<List<FlagState>> onFlagsReset,
             Runnable onFallbackToPolling) {
+        this(baseUrl, getApiKey, config, onFlagUpdate, onFlagDelete, onFlagsReset,
+                onFallbackToPolling, null, null);
+    }
+
+    public StreamingManager(
+            String baseUrl,
+            Supplier<String> getApiKey,
+            StreamingConfig config,
+            Consumer<FlagState> onFlagUpdate,
+            Consumer<String> onFlagDelete,
+            Consumer<List<FlagState>> onFlagsReset,
+            Runnable onFallbackToPolling,
+            OnSubscriptionError onSubscriptionError,
+            OnConnectionLimitError onConnectionLimitError) {
         this.baseUrl = baseUrl;
         this.getApiKey = getApiKey;
         this.config = config != null ? config : new StreamingConfig();
@@ -120,6 +248,8 @@ public class StreamingManager {
         this.onFlagDelete = onFlagDelete;
         this.onFlagsReset = onFlagsReset;
         this.onFallbackToPolling = onFallbackToPolling;
+        this.onSubscriptionError = onSubscriptionError;
+        this.onConnectionLimitError = onConnectionLimitError;
 
         this.httpClient = new OkHttpClient.Builder()
                 .readTimeout(0, TimeUnit.MILLISECONDS) // No timeout for SSE
@@ -132,6 +262,24 @@ public class StreamingManager {
         this.state = new AtomicReference<>(StreamingState.DISCONNECTED);
         this.consecutiveFailures = new AtomicInteger(0);
         this.lastHeartbeat = new AtomicLong(System.currentTimeMillis());
+    }
+
+    /**
+     * Sets the callback for subscription errors.
+     *
+     * @param callback the callback to invoke when subscription errors occur
+     */
+    public void setOnSubscriptionError(OnSubscriptionError callback) {
+        this.onSubscriptionError = callback;
+    }
+
+    /**
+     * Sets the callback for connection limit errors.
+     *
+     * @param callback the callback to invoke when connection limit is reached
+     */
+    public void setOnConnectionLimitError(OnConnectionLimitError callback) {
+        this.onConnectionLimitError = callback;
     }
 
     /**
@@ -330,9 +478,97 @@ public class StreamingManager {
                 case "heartbeat":
                     lastHeartbeat.set(System.currentTimeMillis());
                     break;
+
+                case "error":
+                    handleStreamError(data);
+                    break;
             }
         } catch (Exception e) {
             logger.warn("Failed to process event: {}", eventType, e);
+        }
+    }
+
+    /**
+     * Handles SSE error events from the server.
+     *
+     * <p>Error codes:
+     * <ul>
+     *   <li>TOKEN_INVALID: Re-authenticate completely</li>
+     *   <li>TOKEN_EXPIRED: Refresh token and reconnect</li>
+     *   <li>SUBSCRIPTION_SUSPENDED: Notify user, fall back to cached values</li>
+     *   <li>CONNECTION_LIMIT: Implement backoff or close other connections</li>
+     *   <li>STREAMING_UNAVAILABLE: Fall back to polling</li>
+     * </ul>
+     *
+     * @param data the error event data as JSON
+     */
+    private void handleStreamError(String data) {
+        try {
+            JsonObject errorObj = gson.fromJson(data, JsonObject.class);
+            String codeStr = errorObj.has("code") ? errorObj.get("code").getAsString() : null;
+            String message = errorObj.has("message") ? errorObj.get("message").getAsString() : "Unknown error";
+
+            StreamErrorCode errorCode = StreamErrorCode.fromString(codeStr);
+            StreamErrorData errorData = new StreamErrorData(errorCode, message);
+
+            logger.warn("SSE error event received: code={}, message={}", codeStr, message);
+
+            if (errorCode == null) {
+                logger.warn("Unknown stream error code: {}", codeStr);
+                handleConnectionFailure();
+                return;
+            }
+
+            switch (errorCode) {
+                case TOKEN_EXPIRED:
+                    // Token expired, refresh and reconnect
+                    logger.info("Stream token expired, refreshing...");
+                    cleanup();
+                    connect(); // Will fetch new token
+                    break;
+
+                case TOKEN_INVALID:
+                    // Token is invalid, need full re-authentication
+                    logger.error("Stream token invalid, re-authenticating...");
+                    cleanup();
+                    connect(); // Will fetch new token
+                    break;
+
+                case SUBSCRIPTION_SUSPENDED:
+                    // Subscription issue - notify and fall back
+                    logger.error("Subscription suspended: {}", message);
+                    if (onSubscriptionError != null) {
+                        onSubscriptionError.onError(message);
+                    }
+                    cleanup();
+                    state.set(StreamingState.FAILED);
+                    onFallbackToPolling.run();
+                    break;
+
+                case CONNECTION_LIMIT:
+                    // Too many connections - implement backoff
+                    logger.warn("Connection limit reached, backing off...");
+                    if (onConnectionLimitError != null) {
+                        onConnectionLimitError.onError();
+                    }
+                    handleConnectionFailure();
+                    break;
+
+                case STREAMING_UNAVAILABLE:
+                    // Streaming not available - fall back to polling
+                    logger.warn("Streaming service unavailable, falling back to polling");
+                    cleanup();
+                    state.set(StreamingState.FAILED);
+                    onFallbackToPolling.run();
+                    break;
+
+                default:
+                    logger.warn("Unhandled stream error code: {}", errorCode);
+                    handleConnectionFailure();
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to parse stream error event", e);
+            handleConnectionFailure();
         }
     }
 
