@@ -116,7 +116,9 @@ public class HttpClient {
                 .url(url)
                 .addHeader("X-API-Key", apiKey)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("X-SDK-Version", FlagKitOptions.SDK_VERSION)
+                .addHeader("User-Agent", "FlagKit-Java/" + FlagKitOptions.SDK_VERSION)
+                .addHeader("X-FlagKit-SDK-Version", FlagKitOptions.SDK_VERSION)
+                .addHeader("X-FlagKit-SDK-Language", "java")
                 .get()
                 .build();
 
@@ -140,7 +142,9 @@ public class HttpClient {
                 .url(url)
                 .addHeader("X-API-Key", apiKey)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("X-SDK-Version", FlagKitOptions.SDK_VERSION);
+                .addHeader("User-Agent", "FlagKit-Java/" + FlagKitOptions.SDK_VERSION)
+                .addHeader("X-FlagKit-SDK-Version", FlagKitOptions.SDK_VERSION)
+                .addHeader("X-FlagKit-SDK-Language", "java");
 
         // Add request signing headers if enabled
         if (enableRequestSigning && jsonBody != null && !jsonBody.isEmpty()) {
