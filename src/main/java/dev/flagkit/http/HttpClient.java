@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +23,9 @@ import java.util.concurrent.TimeUnit;
 public class HttpClient {
     private static final Logger logger = LoggerFactory.getLogger(HttpClient.class);
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final List<String> VALID_SUBSCRIPTION_STATUSES = Arrays.asList(
+            "active", "trial", "past_due", "suspended", "cancelled"
+    );
 
     /** Default base URL for the FlagKit API */
     public static final String DEFAULT_BASE_URL = "https://api.flagkit.dev/api/v1";
@@ -46,6 +51,7 @@ public class HttpClient {
     private final double backoffMultiplier;
     private final Random random;
     private final boolean enableRequestSigning;
+    private volatile UsageUpdateCallback usageUpdateCallback;
 
     public HttpClient(String baseUrl, String apiKey, Duration timeout, int maxRetries) {
         this(baseUrl, apiKey, timeout, maxRetries, true);
@@ -67,6 +73,15 @@ public class HttpClient {
         this.backoffMultiplier = 2.0;
         this.random = new Random();
         this.enableRequestSigning = enableRequestSigning;
+    }
+
+    /**
+     * Sets the callback for usage metrics updates.
+     *
+     * @param callback the callback to invoke when usage metrics are received
+     */
+    public void setUsageUpdateCallback(UsageUpdateCallback callback) {
+        this.usageUpdateCallback = callback;
     }
 
     /**
@@ -150,9 +165,15 @@ public class HttpClient {
 
         logger.debug("Response: {} - {}", statusCode, body);
 
+        // Extract and process usage metrics from headers
+        UsageMetrics usageMetrics = extractUsageMetrics(response);
+        if (usageMetrics != null && usageUpdateCallback != null) {
+            usageUpdateCallback.onUsageUpdate(usageMetrics);
+        }
+
         if (statusCode >= 200 && statusCode < 300) {
             circuitBreaker.recordSuccess();
-            return new HttpResponse(statusCode, body);
+            return new HttpResponse(statusCode, body, usageMetrics);
         }
 
         circuitBreaker.recordFailure();
@@ -171,6 +192,63 @@ public class HttpClient {
         }
 
         throw new FlagKitException(ErrorCode.NETWORK_ERROR, "HTTP error: " + statusCode);
+    }
+
+    /**
+     * Extracts usage metrics from response headers.
+     *
+     * @param response the HTTP response
+     * @return the extracted usage metrics, or null if no usage headers are present
+     */
+    private UsageMetrics extractUsageMetrics(Response response) {
+        String apiUsage = response.header("X-API-Usage-Percent");
+        String evalUsage = response.header("X-Evaluation-Usage-Percent");
+        String rateLimitWarning = response.header("X-Rate-Limit-Warning");
+        String subscriptionStatus = response.header("X-Subscription-Status");
+
+        // Return null if no usage headers are present
+        if (apiUsage == null && evalUsage == null && rateLimitWarning == null && subscriptionStatus == null) {
+            return null;
+        }
+
+        UsageMetrics.Builder builder = new UsageMetrics.Builder();
+        builder.rateLimitWarning("true".equalsIgnoreCase(rateLimitWarning));
+
+        if (apiUsage != null) {
+            try {
+                double parsed = Double.parseDouble(apiUsage);
+                builder.apiUsagePercent(parsed);
+                // Log warning for high usage
+                if (parsed >= 80) {
+                    logger.warn("[FlagKit] API usage at {}%", parsed);
+                }
+            } catch (NumberFormatException e) {
+                logger.debug("Failed to parse X-API-Usage-Percent header: {}", apiUsage);
+            }
+        }
+
+        if (evalUsage != null) {
+            try {
+                double parsed = Double.parseDouble(evalUsage);
+                builder.evaluationUsagePercent(parsed);
+                // Log warning for high usage
+                if (parsed >= 80) {
+                    logger.warn("[FlagKit] Evaluation usage at {}%", parsed);
+                }
+            } catch (NumberFormatException e) {
+                logger.debug("Failed to parse X-Evaluation-Usage-Percent header: {}", evalUsage);
+            }
+        }
+
+        if (subscriptionStatus != null && VALID_SUBSCRIPTION_STATUSES.contains(subscriptionStatus.toLowerCase())) {
+            builder.subscriptionStatus(subscriptionStatus.toLowerCase());
+            // Log error for suspended subscription
+            if ("suspended".equalsIgnoreCase(subscriptionStatus)) {
+                logger.error("[FlagKit] Subscription suspended - service degraded");
+            }
+        }
+
+        return builder.build();
     }
 
     private HttpResponse executeWithRetry(HttpOperation operation) throws FlagKitException {
@@ -227,10 +305,16 @@ public class HttpClient {
     public static class HttpResponse {
         private final int statusCode;
         private final String body;
+        private final UsageMetrics usageMetrics;
 
         public HttpResponse(int statusCode, String body) {
+            this(statusCode, body, null);
+        }
+
+        public HttpResponse(int statusCode, String body, UsageMetrics usageMetrics) {
             this.statusCode = statusCode;
             this.body = body;
+            this.usageMetrics = usageMetrics;
         }
 
         public int getStatusCode() {
@@ -240,5 +324,120 @@ public class HttpClient {
         public String getBody() {
             return body;
         }
+
+        public UsageMetrics getUsageMetrics() {
+            return usageMetrics;
+        }
+    }
+
+    /**
+     * Usage metrics extracted from response headers.
+     */
+    public static class UsageMetrics {
+        private final Double apiUsagePercent;
+        private final Double evaluationUsagePercent;
+        private final boolean rateLimitWarning;
+        private final String subscriptionStatus;
+
+        private UsageMetrics(Builder builder) {
+            this.apiUsagePercent = builder.apiUsagePercent;
+            this.evaluationUsagePercent = builder.evaluationUsagePercent;
+            this.rateLimitWarning = builder.rateLimitWarning;
+            this.subscriptionStatus = builder.subscriptionStatus;
+        }
+
+        /**
+         * Returns the percentage of API call limit used this period (0-150+).
+         *
+         * @return the API usage percentage, or null if not provided
+         */
+        public Double getApiUsagePercent() {
+            return apiUsagePercent;
+        }
+
+        /**
+         * Returns the percentage of evaluation limit used (0-150+).
+         *
+         * @return the evaluation usage percentage, or null if not provided
+         */
+        public Double getEvaluationUsagePercent() {
+            return evaluationUsagePercent;
+        }
+
+        /**
+         * Returns whether approaching rate limit threshold.
+         *
+         * @return true if rate limit warning is active
+         */
+        public boolean isRateLimitWarning() {
+            return rateLimitWarning;
+        }
+
+        /**
+         * Returns the current subscription status.
+         * Valid values: active, trial, past_due, suspended, cancelled
+         *
+         * @return the subscription status, or null if not provided
+         */
+        public String getSubscriptionStatus() {
+            return subscriptionStatus;
+        }
+
+        @Override
+        public String toString() {
+            return "UsageMetrics{" +
+                    "apiUsagePercent=" + apiUsagePercent +
+                    ", evaluationUsagePercent=" + evaluationUsagePercent +
+                    ", rateLimitWarning=" + rateLimitWarning +
+                    ", subscriptionStatus='" + subscriptionStatus + '\'' +
+                    '}';
+        }
+
+        /**
+         * Builder for UsageMetrics.
+         */
+        public static class Builder {
+            private Double apiUsagePercent;
+            private Double evaluationUsagePercent;
+            private boolean rateLimitWarning;
+            private String subscriptionStatus;
+
+            public Builder apiUsagePercent(Double apiUsagePercent) {
+                this.apiUsagePercent = apiUsagePercent;
+                return this;
+            }
+
+            public Builder evaluationUsagePercent(Double evaluationUsagePercent) {
+                this.evaluationUsagePercent = evaluationUsagePercent;
+                return this;
+            }
+
+            public Builder rateLimitWarning(boolean rateLimitWarning) {
+                this.rateLimitWarning = rateLimitWarning;
+                return this;
+            }
+
+            public Builder subscriptionStatus(String subscriptionStatus) {
+                this.subscriptionStatus = subscriptionStatus;
+                return this;
+            }
+
+            public UsageMetrics build() {
+                return new UsageMetrics(this);
+            }
+        }
+    }
+
+    /**
+     * Functional interface for receiving usage metrics updates.
+     */
+    @FunctionalInterface
+    public interface UsageUpdateCallback {
+        /**
+         * Called when usage metrics are received from the API.
+         *
+         * @param metrics the usage metrics
+         */
+        void onUsageUpdate(UsageMetrics metrics);
     }
 }
