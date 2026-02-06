@@ -13,6 +13,7 @@ import dev.flagkit.http.HttpClient;
 import dev.flagkit.security.BootstrapVerification;
 import dev.flagkit.security.EvaluationJitterConfig;
 import dev.flagkit.types.*;
+import dev.flagkit.utils.VersionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,6 +118,9 @@ public class FlagKitClient {
             if (data.has("serverTime")) {
                 lastUpdateTime = data.get("serverTime").getAsString();
             }
+
+            // Check SDK version metadata and emit warnings
+            checkVersionMetadata(data);
 
             // Start polling if enabled
             if (options.isEnablePolling()) {
@@ -617,6 +621,71 @@ public class FlagKitClient {
             logger.debug("Bootstrap signature verified successfully");
         } else {
             logger.warn("Bootstrap signature verification failed or was skipped");
+        }
+    }
+
+    /**
+     * Check SDK version metadata from init response and emit appropriate warnings.
+     *
+     * Per spec, the SDK should parse and surface:
+     * - sdkVersionMin: Minimum required version (older may not work)
+     * - sdkVersionRecommended: Recommended version for optimal experience
+     * - sdkVersionLatest: Latest available version
+     * - deprecationWarning: Server-provided deprecation message
+     *
+     * @param data the JSON response from /sdk/init
+     */
+    private void checkVersionMetadata(JsonObject data) {
+        if (!data.has("metadata")) {
+            return;
+        }
+
+        JsonObject metadata = data.getAsJsonObject("metadata");
+        String currentVersion = FlagKitOptions.SDK_VERSION;
+
+        // Check for server-provided deprecation warning first
+        if (metadata.has("deprecationWarning") && !metadata.get("deprecationWarning").isJsonNull()) {
+            String deprecationWarning = metadata.get("deprecationWarning").getAsString();
+            if (deprecationWarning != null && !deprecationWarning.isEmpty()) {
+                logger.warn("[FlagKit] Deprecation Warning: {}", deprecationWarning);
+            }
+        }
+
+        // Check minimum version requirement
+        if (metadata.has("sdkVersionMin") && !metadata.get("sdkVersionMin").isJsonNull()) {
+            String minVersion = metadata.get("sdkVersionMin").getAsString();
+            if (minVersion != null && !minVersion.isEmpty() &&
+                    VersionUtils.isVersionLessThan(currentVersion, minVersion)) {
+                logger.error("[FlagKit] SDK version {} is below minimum required version {}. " +
+                        "Some features may not work correctly. Please upgrade the SDK.",
+                        currentVersion, minVersion);
+            }
+        }
+
+        // Check recommended version
+        String recommendedVersion = null;
+        boolean warnedAboutRecommended = false;
+        if (metadata.has("sdkVersionRecommended") && !metadata.get("sdkVersionRecommended").isJsonNull()) {
+            recommendedVersion = metadata.get("sdkVersionRecommended").getAsString();
+            if (recommendedVersion != null && !recommendedVersion.isEmpty() &&
+                    VersionUtils.isVersionLessThan(currentVersion, recommendedVersion)) {
+                logger.warn("[FlagKit] SDK version {} is below recommended version {}. " +
+                        "Consider upgrading for the best experience.",
+                        currentVersion, recommendedVersion);
+                warnedAboutRecommended = true;
+            }
+        }
+
+        // Log if a newer version is available (info level, not a warning)
+        // Only log if we haven't already warned about recommended
+        if (metadata.has("sdkVersionLatest") && !metadata.get("sdkVersionLatest").isJsonNull()) {
+            String latestVersion = metadata.get("sdkVersionLatest").getAsString();
+            if (latestVersion != null && !latestVersion.isEmpty() &&
+                    VersionUtils.isVersionLessThan(currentVersion, latestVersion) &&
+                    !warnedAboutRecommended) {
+                logger.info("[FlagKit] SDK version {} - a newer version {} is available.",
+                        currentVersion, latestVersion);
+            }
         }
     }
 }
