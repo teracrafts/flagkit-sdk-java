@@ -12,8 +12,8 @@ Official Java SDK for [FlagKit](https://flagkit.dev) - Feature flag management m
 
 ```xml
 <dependency>
-    <groupId>dev.flagkit</groupId>
-    <artifactId>flagkit-java</artifactId>
+    <groupId>com.teracrafts</groupId>
+    <artifactId>flagkit</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
@@ -21,7 +21,7 @@ Official Java SDK for [FlagKit](https://flagkit.dev) - Feature flag management m
 ### Gradle
 
 ```groovy
-implementation 'dev.flagkit:flagkit-java:1.0.0'
+implementation 'com.teracrafts:flagkit:1.0.0'
 ```
 
 ## Quick Start
