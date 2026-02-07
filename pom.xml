@@ -4,14 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>dev.flagkit</groupId>
-    <artifactId>flagkit-java</artifactId>
+    <groupId>com.teracrafts</groupId>
+    <artifactId>flagkit</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>FlagKit Java SDK</name>
     <description>Official Java SDK for FlagKit feature flag management</description>
-    <url>https://github.com/flagkit/flagkit-java</url>
+    <url>https://github.com/teracrafts/flagkit-sdk</url>
 
     <licenses>
         <license>
