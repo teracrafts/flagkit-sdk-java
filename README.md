@@ -207,12 +207,10 @@ The SDK includes built-in security features that can be enabled through configur
 
 ## Local Development
 
-Use the `localPort()` option to connect to a local FlagKit server:
 
 ```java
 FlagKitClient client = FlagKit.initialize(
     FlagKitOptions.builder("sdk_your_api_key")
-        .localPort(8200)
         .build()
 );
 ```
