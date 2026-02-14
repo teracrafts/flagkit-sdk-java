@@ -2,7 +2,9 @@ package dev.flagkit;
 
 import dev.flagkit.error.ErrorCode;
 import dev.flagkit.error.FlagKitException;
+import dev.flagkit.http.HttpClient;
 import org.junit.jupiter.api.Test;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,6 +12,18 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FlagKitOptionsTest {
+
+    @Test
+    void testGetBaseUrlReturnsValidUrl() {
+        String baseUrl = HttpClient.getBaseUrl();
+        // Without FLAGKIT_MODE set, should return one of the known URLs
+        assertTrue(
+            baseUrl.equals(HttpClient.DEFAULT_BASE_URL) ||
+            baseUrl.equals(HttpClient.BETA_BASE_URL) ||
+            baseUrl.equals(HttpClient.LOCAL_BASE_URL),
+            "getBaseUrl() should return a known base URL, got: " + baseUrl
+        );
+    }
 
     @Test
     void testBuilderWithApiKey() {
@@ -156,28 +170,4 @@ class FlagKitOptionsTest {
         assertFalse(options.isCacheEnabled());
     }
 
-    @Test
-    void testLocalPortMode() {
-        FlagKitOptions options = FlagKitOptions.builder("sdk_test_key")
-                .localPort(8200)
-                .build();
-
-        assertEquals(8200, options.getLocalPort());
-    }
-
-    @Test
-    void testLocalPortCustomValue() {
-        FlagKitOptions options = FlagKitOptions.builder("sdk_test_key")
-                .localPort(3000)
-                .build();
-
-        assertEquals(3000, options.getLocalPort());
-    }
-
-    @Test
-    void testLocalPortDefaultsNull() {
-        FlagKitOptions options = FlagKitOptions.builder("sdk_test_key").build();
-
-        assertNull(options.getLocalPort());
-    }
 }
