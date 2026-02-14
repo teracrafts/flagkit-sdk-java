@@ -49,7 +49,7 @@ public class FlagKitClient {
         this.options = options;
         this.cache = new Cache(options.getCacheTtl(), 1000);
         this.httpClient = new HttpClient(
-                HttpClient.getBaseUrl(options.getLocalPort()),
+                HttpClient.getBaseUrl(),
                 options.getApiKey(),
                 options.getTimeout(),
                 options.getRetries(),
