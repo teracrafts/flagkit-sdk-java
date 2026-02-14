@@ -29,15 +29,24 @@ public class HttpClient {
 
     /** Default base URL for the FlagKit API */
     public static final String DEFAULT_BASE_URL = "https://api.flagkit.dev/api/v1";
+    public static final String BETA_BASE_URL = "https://api.beta.flagkit.dev/api/v1";
+    public static final String LOCAL_BASE_URL = "https://api.flagkit.on/api/v1";
 
     /**
-     * Returns the appropriate base URL based on the localPort.
-     *
-     * @param localPort the port for local development, or null for production
-     * @return the base URL to use
+     * Returns the base URL based on internal SDK mode.
      */
-    public static String getBaseUrl(Integer localPort) {
-        return localPort != null ? "http://localhost:" + localPort + "/api/v1" : DEFAULT_BASE_URL;
+    public static String getBaseUrl() {
+        String mode = System.getenv("FLAGKIT_MODE");
+        if (mode != null) {
+            mode = mode.trim().toLowerCase();
+            if ("local".equals(mode)) {
+                return LOCAL_BASE_URL;
+            }
+            if ("beta".equals(mode)) {
+                return BETA_BASE_URL;
+            }
+        }
+        return DEFAULT_BASE_URL;
     }
 
     private final OkHttpClient client;
