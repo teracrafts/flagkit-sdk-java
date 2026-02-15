@@ -23,7 +23,7 @@ public class FlagKitOptions {
     public static final Duration DEFAULT_CACHE_TTL = Duration.ofMinutes(5);
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
     public static final int DEFAULT_RETRIES = 3;
-    public static final String SDK_VERSION = "1.0.9";
+    public static final String SDK_VERSION = "1.1.0";
 
     private final String apiKey;
     private final Duration pollingInterval;
